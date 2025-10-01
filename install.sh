@@ -192,9 +192,9 @@ brew_bundle_phase() {
     fi
     log "Installing $label packages from $file"
     if (( DRY_RUN )); then
-        echo "DRY-RUN: brew bundle install --file=$file --no-lock"
+        echo "DRY-RUN: brew bundle install --file=$file"
     else
-        run brew bundle install --file="$file" --no-lock
+        run brew bundle install --file="$file"
     fi
 }
 
