@@ -1,0 +1,14 @@
+###############################################
+# Brewfile.bootstrap (Phase 1)
+# Minimal public prerequisites installed first
+# so that GitHub CLI can be authenticated before
+# installing internal/private taps & formulae.
+# Keep this list intentionally small.
+###############################################
+
+brew "git"
+brew "gh"
+brew "coreutils"
+brew "jq"
+
+# Add additional absolutely-required public tools above if needed.
