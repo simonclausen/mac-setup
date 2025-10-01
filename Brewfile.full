@@ -6,7 +6,7 @@
 ############################################################
 
 tap "elastic/tap"
-tap "lego/amma-cli", "git@github.com:LEGO/amma-cli.git"
+tap "lego/amma-cli"
 tap "mike-engel/jwt-cli"
 tap "weaveworks/tap"
 
