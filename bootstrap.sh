@@ -52,6 +52,7 @@ fi
 log "Git is now available: $(git --version)"
 
 # Allow passing flags through to install.sh (e.g. --dry-run)
+declare -a INSTALL_ARGS
 INSTALL_ARGS=("$@")
 
 # Clone or update the setup repository (idempotent)
@@ -77,8 +78,13 @@ fi
 chmod +x install.sh
 chmod +x macos-defaults.sh
 
-# Run the main installation
-log "Starting main installation (passing args: ${INSTALL_ARGS[*]:-none})..."
-./install.sh "${INSTALL_ARGS[@]}"
+# Run the main installation (safe with set -u even if no args)
+if ((${#INSTALL_ARGS[@]})); then
+    log "Starting main installation (passing args: ${INSTALL_ARGS[*]})..."
+    ./install.sh "${INSTALL_ARGS[@]}"
+else
+    log "Starting main installation (no extra args) ..."
+    ./install.sh
+fi
 
 log "Bootstrap complete!"
