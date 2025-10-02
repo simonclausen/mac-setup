@@ -470,7 +470,30 @@ configure_git() {
                 info "Configured git user.name/user.email ($name / $email)"
             fi
         else
-            warn "Git user.name/email not set and GIT_USER_NAME / GIT_USER_EMAIL not provided – leaving unset. Export them and re-run to set automatically."
+            if (( DRY_RUN )); then
+                echo "DRY-RUN: would prompt for git user.name / user.email (interactive)"
+            else
+                if [[ -t 0 && -t 1 ]]; then
+                    info "Git identity not set. Interactive prompts below (leave blank to skip)."
+                    if [[ -z "$existing_name" ]]; then
+                        printf "Enter git user.name: " >&2
+                        IFS= read -r name || true
+                    fi
+                    if [[ -z "$existing_email" ]]; then
+                        printf "Enter git user.email: " >&2
+                        IFS= read -r email || true
+                    fi
+                    if [[ -n "$name" && -n "$email" ]]; then
+                        run git config --global user.name "$name"
+                        run git config --global user.email "$email"
+                        info "Configured git user.name/user.email ($name / $email)"
+                    else
+                        warn "Git user.name/email still unset (provide env vars or rerun to configure)."
+                    fi
+                else
+                    warn "Git user.name/email not set and no interactive TTY. Export GIT_USER_NAME / GIT_USER_EMAIL and re-run to configure automatically."
+                fi
+            fi
         fi
     else
         info "Git user identity already set ($existing_name / $existing_email)"

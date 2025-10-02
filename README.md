@@ -126,3 +126,5 @@ ssh-keygen -t ed25519 -C "jane.developer@example.com"
 ```
 
 Then re-run the installer (or manually configure git).
+
+If neither environment variables nor existing config are present and you're in an interactive TTY, the installer will prompt for name and email (blank responses skip configuration).
