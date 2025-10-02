@@ -40,6 +40,7 @@ DO_OHMYZSH=1
 DO_MISE=1
 DO_MISE_INSTALL=1
 DO_GIT_CONFIG=1
+DO_DOTFILES=1
 DRY_RUN=0
 VERBOSE=0
 
@@ -58,6 +59,7 @@ Options:
     --no-mise             Skip mise activation/install & tool installation
     --no-mise-install     Activate mise but skip 'mise install'
     --no-git-config       Skip git config provisioning
+    --no-dotfiles         Skip generic dotfiles/ provisioning (except .gitconfig already controlled by --no-git-config)
     --verbose             More verbose output
     -h, --help            Show this help and exit
 
@@ -77,6 +79,7 @@ while [[ $# -gt 0 ]]; do
         --no-mise) DO_MISE=0 DO_MISE_INSTALL=0 ;;
         --no-mise-install) DO_MISE_INSTALL=0 ;;
         --no-git-config) DO_GIT_CONFIG=0 ;;
+    --no-dotfiles) DO_DOTFILES=0 ;;
         --verbose) VERBOSE=1 ;;
         -h|--help) usage; exit 0 ;;
         *) abort "Unknown option: $1" ;;
@@ -349,17 +352,49 @@ EOF
     fi
 }
 
-provision_git_config() {
-    (( DO_GIT_CONFIG )) || { info "Skipping git config provisioning (flag)"; return 0; }
-    if [[ -f "dotfiles/.gitconfig" ]]; then
-        log "Provisioning ~/.gitconfig"
-        if [[ -f "$HOME/.gitconfig" && ! -f "$HOME/.gitconfig.backup.mac-setup" ]]; then
-            (( DRY_RUN )) && echo "DRY-RUN: backup existing .gitconfig" || cp "$HOME/.gitconfig" "$HOME/.gitconfig.backup.mac-setup"
+provision_dotfiles() {
+    [[ -d dotfiles ]] || { info "No dotfiles/ directory present"; return 0; }
+    local applied=0 skipped=0 backed_up=0
+    for src in dotfiles/* dotfiles/.*; do
+        # Skip if glob didn't match
+        [[ -e "$src" ]] || continue
+        # Skip . and ..
+        local base
+        base="${src##*/}"
+        [[ "$base" == "." || "$base" == ".." ]] && continue
+        # Skip common non-config artifacts
+        [[ "$base" == "README"* || "$base" == *.md || "$base" == *.txt ]] && continue
+        # Skip directories starting with .git (like .gitignore templates) only if you want? keep .gitignore though
+        # If it's .gitconfig and git config disabled, skip
+        if [[ "$base" == ".gitconfig" && $DO_GIT_CONFIG -eq 0 ]]; then
+            skipped=$((skipped+1)); continue
         fi
-        (( DRY_RUN )) && echo "DRY-RUN: copy dotfiles/.gitconfig" || cp dotfiles/.gitconfig "$HOME/.gitconfig"
-    else
-        warn "dotfiles/.gitconfig not found – skipped"
-    fi
+        local target_base="$base"
+        if [[ "$base" != .* ]]; then
+            target_base=".$base"
+        fi
+        local target="$HOME/$target_base"
+        # Determine action
+        if [[ -f "$src" ]]; then
+            if [[ -f "$target" ]] && cmp -s "$src" "$target"; then
+                skipped=$((skipped+1)); continue
+            fi
+            if [[ -e "$target" && ! -e "${target}.backup.mac-setup" ]]; then
+                (( DRY_RUN )) && echo "DRY-RUN: backup $target -> ${target}.backup.mac-setup" || cp -R "$target" "${target}.backup.mac-setup" && backed_up=$((backed_up+1)) || true
+            fi
+            (( DRY_RUN )) && echo "DRY-RUN: install $src -> $target" || cp "$src" "$target" && applied=$((applied+1))
+        elif [[ -d "$src" ]]; then
+            # For directories, sync (shallow copy) if new or different (naively always copy for simplicity)
+            if [[ -d "$target" && ! -e "${target}.backup.mac-setup" ]]; then
+                (( DRY_RUN )) && echo "DRY-RUN: backup dir $target -> ${target}.backup.mac-setup" || cp -R "$target" "${target}.backup.mac-setup" && backed_up=$((backed_up+1)) || true
+            fi
+            (( DRY_RUN )) && echo "DRY-RUN: copy dir $src -> $target" || { rm -rf "$target" 2>/dev/null || true; cp -R "$src" "$target" && applied=$((applied+1)); }
+        else
+            skipped=$((skipped+1))
+            continue
+        fi
+    done
+    info "Dotfiles provisioning: applied=$applied backed_up=$backed_up skipped=$skipped"
 }
 
 apply_macos_defaults() {
@@ -401,6 +436,6 @@ configure_gnu_tools
 ensure_zshrc_sourcing
 install_oh_my_zsh
 install_mise
-provision_git_config
+(( DO_DOTFILES )) && provision_dotfiles || info "Skipping dotfiles (flag)"
 apply_macos_defaults
 summary

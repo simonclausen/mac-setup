@@ -14,6 +14,7 @@ Minimal, repeatable macOS dev environment bootstrap with two-phase Homebrew inst
 - Two-phase package install (public first, internal after `gh auth login`)
 - Creates modular `~/.zshrc.d` fragments (Homebrew, GNU tools, mise)
 - Optional: macOS defaults, Oh My Zsh, mise tools, git config
+- Copies any files in `dotfiles/` into `$HOME` (prefixing with a dot when needed) with single backup per file
 - Safe re-run: avoids duplicate lines, backs up existing `~/.gitconfig` once
 - `--dry-run` preview mode
 
@@ -54,6 +55,7 @@ Add `--dry-run` to preview. A sentinel file prevents duplicates.
 --no-mise             Skip mise (and tools)
 --no-mise-install     Activate mise only
 --no-git-config       Skip git config
+--no-dotfiles         Skip generic dotfiles provisioning
 --verbose             Shell trace
 ```
 
