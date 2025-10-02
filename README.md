@@ -1,6 +1,6 @@
 # mac-setup
 
-Minimal, repeatable macOS dev environment bootstrap with two-phase Homebrew install and safe re-runs.
+Minimal, repeatable macOS, and very opinionated, dev environment bootstrap with two-phase Homebrew install and safe re-runs.
 
 ## Quick start
 
