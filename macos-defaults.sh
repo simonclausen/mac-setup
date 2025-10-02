@@ -9,13 +9,20 @@ DRY_RUN=${DRY_RUN:-0}
 
 _run() {
     if (( DRY_RUN )); then
-        echo "DRY-RUN: $*"
+        # Print a shell-escaped version of the command to show exact tokens
+        printf 'DRY-RUN: '
+        printf '%q ' "$@"
+        printf '\n'
     else
-        eval "$*"
+        "$@"
     fi
 }
 
-echo "Applying macOS system preferences...${DRY_RUN:+ (dry-run)}"
+if [[ "$DRY_RUN" == "1" ]]; then
+    echo "Applying macOS system preferences... (dry-run)"
+else
+    echo "Applying macOS system preferences..."
+fi
 
 # Close System Preferences to prevent conflicts
 osascript -e 'tell application "System Preferences" to quit'
@@ -181,4 +188,8 @@ else
     echo "DRY-RUN: would restart affected applications"
 fi
 
-echo "macOS defaults ${DRY_RUN:+(dry-run) }applied! Some changes require a logout/restart to take effect."
+if (( DRY_RUN )); then
+    echo "macOS defaults (dry-run) complete. No changes applied."
+else
+    echo "macOS defaults applied! Some changes may require logout/restart."
+fi
