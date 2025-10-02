@@ -31,6 +31,16 @@ brew bundle --file Brewfile.full
 
 `Brewfile` at repo root is a stub to prevent accidental single-phase use.
 
+### VS Code extensions
+
+Extensions install after first manual launch (Gatekeeper approval). Then run:
+
+```bash
+~/.mac-setup/scripts/install-vscode-extensions.sh
+```
+
+Add `--dry-run` to preview. A sentinel file prevents duplicates.
+
 ## Common flags
 
 ```text

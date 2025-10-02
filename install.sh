@@ -317,33 +317,33 @@ install_oh_my_zsh() {
     run sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 }
 
-# install_mise() {
-#     (( DO_MISE )) || { info "Skipping mise (flag)"; return 0; }
-#     if command -v mise >/dev/null 2>&1; then
-#         info "mise already installed: $(mise --version 2>/dev/null | head -n1)"
-#     else
-#         log "Installing mise"
-#         run bash -c "curl -fsSL https://mise.run | sh"
-#     fi
-#     ensure_dir "$HOME/.zshrc.d"
-#     local mise_file="$HOME/.zshrc.d/20-mise.zsh"
-#     if (( DRY_RUN )); then
-#         echo "DRY-RUN: write $mise_file"
-#     else
-#         cat > "$mise_file" <<'EOF'
-# # Managed by mac-setup (mise activation)
-# if [ -x "$HOME/.local/bin/mise" ]; then
-#     eval "$($HOME/.local/bin/mise activate zsh)"
-# fi
-# EOF
-#     fi
-#     if (( DO_MISE_INSTALL )); then
-#         log "Ensuring mise tools (mise install)"
-#         (( DRY_RUN )) && echo "DRY-RUN: mise install" || mise install || warn "mise install returned non-zero"
-#     else
-#         info "Skipping mise install step (flag)"
-#     fi
-# }
+install_mise() {
+    (( DO_MISE )) || { info "Skipping mise (flag)"; return 0; }
+    if command -v mise >/dev/null 2>&1; then
+        info "mise already installed: $(mise --version 2>/dev/null | head -n1)"
+    else
+        log "Installing mise"
+        run bash -c "curl -fsSL https://mise.run | sh"
+    fi
+    ensure_dir "$HOME/.zshrc.d"
+    local mise_file="$HOME/.zshrc.d/20-mise.zsh"
+    if (( DRY_RUN )); then
+        echo "DRY-RUN: write $mise_file"
+    else
+        cat > "$mise_file" <<'EOF'
+# Managed by mac-setup (mise activation)
+if [ -x "$HOME/.local/bin/mise" ]; then
+    eval "$( $HOME/.local/bin/mise activate zsh)"
+fi
+EOF
+    fi
+    if (( DO_MISE_INSTALL )); then
+        log "Ensuring mise tools (mise install)"
+        (( DRY_RUN )) && echo "DRY-RUN: mise install" || mise install || warn "mise install returned non-zero"
+    else
+        info "Skipping mise install step (flag)"
+    fi
+}
 
 provision_git_config() {
     (( DO_GIT_CONFIG )) || { info "Skipping git config provisioning (flag)"; return 0; }
@@ -373,7 +373,18 @@ summary() {
     local end_epoch=$(date +%s)
     local dur=$(( end_epoch - START_TIME_EPOCH ))
     echo -e "\n${GREEN}Setup complete in ${dur}s${NC}"
-    (( DRY_RUN )) && echo "(dry run: no actual changes were made)" || echo "Restart your terminal or: source ~/.zshrc"
+    if (( DRY_RUN )); then
+        echo "(dry run: no actual changes were made)"
+    else
+        echo "Restart your terminal or: source ~/.zshrc"
+        if command -v code >/dev/null 2>&1; then
+            local sentinel="$HOME/.local/state/mac-setup/vscode-extensions.done"
+            if [[ ! -f "$sentinel" ]]; then
+                echo "(VS Code) Launch VS Code once, then run:"
+                echo "  ~/.mac-setup/scripts/install-vscode-extensions.sh"
+            fi
+        fi
+    fi
 }
 
 install_xcode_clt
