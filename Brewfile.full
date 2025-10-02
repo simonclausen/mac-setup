@@ -11,6 +11,7 @@ tap "mike-engel/jwt-cli"
 tap "weaveworks/tap"
 
 brew "azure-cli"
+brew "awscli"
 brew "bash"
 brew "coreutils"
 brew "kubernetes-cli"
