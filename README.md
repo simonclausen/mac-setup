@@ -14,6 +14,7 @@ Minimal, repeatable macOS, and very opinionated, dev environment bootstrap with 
 - Two-phase package install (public first, internal after `gh auth login`)
 - Creates modular `~/.zshrc.d` fragments (Homebrew, GNU tools, mise)
 - Optional: macOS defaults, Oh My Zsh, mise tools, git config, AWS SAML helper
+- Optional: macOS defaults, Oh My Zsh, mise tools, git config (with SSH commit signing), AWS SAML helper
 - Copies any files in `dotfiles/` into `$HOME` (prefixing with a dot when needed) with single backup per file
 - Safe re-run: avoids duplicate lines, backs up existing `~/.gitconfig` once
 - `--dry-run` preview mode
@@ -100,3 +101,28 @@ Skip with `--no-aws-saml`.
 Further usage & role switching docs:
 
 [SAML2AWS usage docs](https://github.com/LEGO/dope-user-support/blob/main/docs/saml2aws.md)
+
+## Git configuration & SSH commit signing
+
+If `user.name` / `user.email` aren't already set globally and environment variables are provided, they will be applied:
+
+```bash
+export GIT_USER_NAME="Jane Developer"
+export GIT_USER_EMAIL="jane.developer@example.com"
+```
+
+SSH-based commit signing is enabled automatically when possible:
+
+1. Determines a signing key (in order): `$GIT_SSH_SIGNING_KEY`, `~/.ssh/id_ed25519.pub`, `~/.ssh/id_ecdsa.pub`, `~/.ssh/id_rsa.pub`.
+2. Sets:
+   - `gpg.format=ssh`
+   - `user.signingkey=<path-to-public-key>`
+   - `commit.gpgsign=true`
+
+If no suitable key is found you will see a warning; generate one, e.g.:
+
+```bash
+ssh-keygen -t ed25519 -C "jane.developer@example.com"
+```
+
+Then re-run the installer (or manually configure git).

@@ -450,6 +450,71 @@ configure_aws_saml() {
     fi
 }
 
+configure_git() {
+    (( DO_GIT_CONFIG )) || { info "Skipping git config (flag)"; return 0; }
+    command -v git >/dev/null 2>&1 || { warn "git not installed yet – skipping git configuration"; return 0; }
+    local existing_name existing_email
+    existing_name=$(git config --global user.name || true)
+    existing_email=$(git config --global user.email || true)
+    if [[ -z "$existing_name" || -z "$existing_email" ]]; then
+        local name email
+        name=${GIT_USER_NAME:-}
+        email=${GIT_USER_EMAIL:-}
+        if [[ -n "$name" && -n "$email" ]]; then
+            if (( DRY_RUN )); then
+                echo "DRY-RUN: git config --global user.name '$name'"
+                echo "DRY-RUN: git config --global user.email '$email'"
+            else
+                run git config --global user.name "$name"
+                run git config --global user.email "$email"
+                info "Configured git user.name/user.email ($name / $email)"
+            fi
+        else
+            warn "Git user.name/email not set and GIT_USER_NAME / GIT_USER_EMAIL not provided – leaving unset. Export them and re-run to set automatically."
+        fi
+    else
+        info "Git user identity already set ($existing_name / $existing_email)"
+    fi
+
+    # Configure SSH commit signing (gpg.format=ssh)
+    local current_format current_signingkey
+    current_format=$(git config --global gpg.format || true)
+    current_signingkey=$(git config --global user.signingkey || true)
+    if [[ "$current_format" == "ssh" && -n "$current_signingkey" ]]; then
+        info "Git SSH commit signing already configured (key: $current_signingkey)"
+        return 0
+    fi
+    # Determine SSH public key to use
+    local chosen_key=""
+    if [[ -n "${GIT_SSH_SIGNING_KEY:-}" ]]; then
+        if [[ -f "$GIT_SSH_SIGNING_KEY" ]]; then
+            chosen_key="$GIT_SSH_SIGNING_KEY"
+        else
+            warn "GIT_SSH_SIGNING_KEY path not found: $GIT_SSH_SIGNING_KEY"
+        fi
+    fi
+    if [[ -z "$chosen_key" ]]; then
+        for cand in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_ecdsa.pub" "$HOME/.ssh/id_rsa.pub"; do
+            [[ -f "$cand" ]] || continue
+            chosen_key="$cand"; break
+        done
+    fi
+    if [[ -z "$chosen_key" ]]; then
+        warn "No SSH public key found for commit signing (looked for id_ed25519.pub, id_ecdsa.pub, id_rsa.pub). Generate one (ssh-keygen -t ed25519) and re-run or set GIT_SSH_SIGNING_KEY."
+        return 0
+    fi
+    if (( DRY_RUN )); then
+        echo "DRY-RUN: git config --global gpg.format ssh"
+        echo "DRY-RUN: git config --global user.signingkey $chosen_key"
+        echo "DRY-RUN: git config --global commit.gpgsign true"
+    else
+        run git config --global gpg.format ssh
+        run git config --global user.signingkey "$chosen_key"
+        run git config --global commit.gpgsign true
+        info "Enabled SSH commit signing with key: $chosen_key"
+    fi
+}
+
 summary() {
     local end_epoch=$(date +%s)
     local dur=$(( end_epoch - START_TIME_EPOCH ))
@@ -479,6 +544,7 @@ ensure_zshrc_sourcing
 install_oh_my_zsh
 install_mise
 (( DO_DOTFILES )) && provision_dotfiles || info "Skipping dotfiles (flag)"
+configure_git
 apply_macos_defaults
 configure_aws_saml
 summary
