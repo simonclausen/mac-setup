@@ -175,17 +175,18 @@ _run defaults write com.apple.SoftwareUpdate AutomaticDownload -int 1
 # Kill affected applications
 # ==============================================
 
-echo "Restarting affected applications..."
+echo "Restarting affected applications (excluding Terminal)..."
 if (( ! DRY_RUN )); then
     for app in "Activity Monitor" \
             "Dock" \
             "Finder" \
-            "SystemUIServer" \
-            "Terminal"; do
+            "SystemUIServer"; do
             killall "${app}" &> /dev/null || true
     done
+    echo "NOTE: Restart Terminal manually to apply Terminal-specific settings (or open a new window/tab)."
 else
-    echo "DRY-RUN: would restart affected applications"
+    echo "DRY-RUN: would restart Activity Monitor, Dock, Finder, SystemUIServer"
+    echo "DRY-RUN: (Terminal not auto-terminated; restart manually after applying for full effect)"
 fi
 
 if (( DRY_RUN )); then
