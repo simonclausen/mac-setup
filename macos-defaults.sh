@@ -126,7 +126,10 @@ _run defaults write com.apple.dock showhidden -bool true
 _run defaults write com.apple.dock show-recents -bool false
 
 # Speed up Mission Control animations
-_run defaults write com.apple.dock expose-animation-duration -float 0.1
+_run defaults write com.apple.dock expose-animation-duration -float 0.
+
+# Remove default icons from the Dock
+_run defaults delete com.apple.dock persistent-apps
 
 # ==============================================
 # Terminal & Development
