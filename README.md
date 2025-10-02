@@ -13,7 +13,7 @@ Minimal, repeatable macOS, and very opinionated, dev environment bootstrap with 
 - Installs / updates Homebrew (idempotent)
 - Two-phase package install (public first, internal after `gh auth login`)
 - Creates modular `~/.zshrc.d` fragments (Homebrew, GNU tools, mise)
-- Optional: macOS defaults, Oh My Zsh, mise tools, git config
+- Optional: macOS defaults, Oh My Zsh, mise tools, git config, AWS SAML helper
 - Copies any files in `dotfiles/` into `$HOME` (prefixing with a dot when needed) with single backup per file
 - Safe re-run: avoids duplicate lines, backs up existing `~/.gitconfig` once
 - `--dry-run` preview mode
@@ -56,6 +56,7 @@ Add `--dry-run` to preview. A sentinel file prevents duplicates.
 --no-mise-install     Activate mise only
 --no-git-config       Skip git config
 --no-dotfiles         Skip generic dotfiles provisioning
+--no-aws-saml         Skip AWS SAML role helper configuration
 --verbose             Shell trace
 ```
 
@@ -84,3 +85,18 @@ mv ~/.gitconfig.backup.mac-setup ~/.gitconfig 2>/dev/null || true
 - PATH issues: open new shell or `source ~/.zshrc`
 - Check pending packages: `brew bundle check --file Brewfile.full`
 - Internal phase skipped? Run `gh auth login` then re-run full bundle.
+
+## AWS SAML (saml2aws) helper
+
+If PowerShell (`pwsh`) is installed (via `Brewfile.full`), the installer will attempt to clone `LEGO/dope-user-support` into `~/.mac-setup/dope-user-support` and run:
+
+```bash
+saml/create-cache.ps1
+saml/configure-saml2aws.ps1
+```
+
+Skip with `--no-aws-saml`.
+
+Further usage & role switching docs:
+
+[SAML2AWS usage docs](https://github.com/LEGO/dope-user-support/blob/main/docs/saml2aws.md)

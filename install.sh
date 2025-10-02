@@ -41,6 +41,7 @@ DO_MISE=1
 DO_MISE_INSTALL=1
 DO_GIT_CONFIG=1
 DO_DOTFILES=1
+DO_AWS_SAML=1
 DRY_RUN=0
 VERBOSE=0
 
@@ -60,6 +61,7 @@ Options:
     --no-mise-install     Activate mise but skip 'mise install'
     --no-git-config       Skip git config provisioning
     --no-dotfiles         Skip generic dotfiles/ provisioning (except .gitconfig already controlled by --no-git-config)
+    --no-aws-saml         Skip AWS SAML role (saml2aws) helper configuration
     --verbose             More verbose output
     -h, --help            Show this help and exit
 
@@ -80,6 +82,7 @@ while [[ $# -gt 0 ]]; do
         --no-mise-install) DO_MISE_INSTALL=0 ;;
         --no-git-config) DO_GIT_CONFIG=0 ;;
     --no-dotfiles) DO_DOTFILES=0 ;;
+    --no-aws-saml) DO_AWS_SAML=0 ;;
         --verbose) VERBOSE=1 ;;
         -h|--help) usage; exit 0 ;;
         *) abort "Unknown option: $1" ;;
@@ -408,6 +411,45 @@ apply_macos_defaults() {
     fi
 }
 
+configure_aws_saml() {
+    (( DO_AWS_SAML )) || { info "Skipping AWS SAML (flag)"; return 0; }
+    local repo_url="https://github.com/LEGO/dope-user-support"
+    local clone_dir="$HOME/.mac-setup/dope-user-support"
+    local doc_url="https://github.com/LEGO/dope-user-support/blob/main/docs/saml2aws.md"
+    # Ensure prerequisites
+    if ! command -v git >/dev/null 2>&1; then
+        warn "git not available – cannot configure AWS SAML now"; return 0; fi
+    if ! command -v pwsh >/dev/null 2>&1; then
+        warn "PowerShell (pwsh) not installed yet – skipping AWS SAML configuration. Re-run after 'brew bundle --file Brewfile.full' installs powershell."; return 0; fi
+    # Clone or update
+    if [[ -d "$clone_dir/.git" ]]; then
+        ( cd "$clone_dir" && if (( DRY_RUN )); then echo "DRY-RUN: git pull --ff-only"; else git remote get-url origin >/dev/null 2>&1 && git pull --ff-only || true; fi )
+    else
+        ensure_dir "$(dirname "$clone_dir")"
+        if (( DRY_RUN )); then
+            echo "DRY-RUN: git clone $repo_url $clone_dir"
+        else
+            git clone "$repo_url" "$clone_dir" || { warn "Clone of $repo_url failed"; return 0; }
+        fi
+    fi
+    # Run scripts
+    local script1="$clone_dir/saml/create-cache.ps1"
+    local script2="$clone_dir/saml/configure-saml2aws.ps1"
+    if [[ ! -f "$script1" || ! -f "$script2" ]]; then
+        warn "Expected SAML scripts not found in $clone_dir/saml – repository layout may have changed. See $doc_url"
+        return 0
+    fi
+    if (( DRY_RUN )); then
+        echo "DRY-RUN: pwsh -NoLogo -NoProfile -File $script1"
+        echo "DRY-RUN: pwsh -NoLogo -NoProfile -File $script2"
+    else
+        log "Configuring AWS SAML (saml2aws) helper via dope-user-support repo"
+        pwsh -NoLogo -NoProfile -File "$script1" || warn "create-cache.ps1 failed"
+        pwsh -NoLogo -NoProfile -File "$script2" || warn "configure-saml2aws.ps1 failed"
+        info "AWS SAML helper configuration attempted. For usage docs see: $doc_url"
+    fi
+}
+
 summary() {
     local end_epoch=$(date +%s)
     local dur=$(( end_epoch - START_TIME_EPOCH ))
@@ -438,4 +480,5 @@ install_oh_my_zsh
 install_mise
 (( DO_DOTFILES )) && provision_dotfiles || info "Skipping dotfiles (flag)"
 apply_macos_defaults
+configure_aws_saml
 summary
