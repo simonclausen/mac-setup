@@ -319,27 +319,31 @@ install_oh_my_zsh() {
 
 install_mise() {
     (( DO_MISE )) || { info "Skipping mise (flag)"; return 0; }
-    if command -v mise >/dev/null 2>&1; then
-        info "mise already installed: $(mise --version 2>/dev/null | head -n1)"
-    else
-        log "Installing mise"
-        run bash -c "curl -fsSL https://mise.run | sh"
-    fi
     ensure_dir "$HOME/.zshrc.d"
     local mise_file="$HOME/.zshrc.d/20-mise.zsh"
+    # We now rely on Homebrew formula 'mise' instead of curl script.
+    if command -v mise >/dev/null 2>&1; then
+        info "Detected mise: $(mise --version 2>/dev/null | head -n1)"
+    else
+        warn "mise not found (brew phase may have skipped or internal phase not run). Run: brew bundle --file Brewfile.full (or install mise)"
+    fi
     if (( DRY_RUN )); then
-        echo "DRY-RUN: write $mise_file"
+        echo "DRY-RUN: write $mise_file activation fragment"
     else
         cat > "$mise_file" <<'EOF'
 # Managed by mac-setup (mise activation)
-if [ -x "$HOME/.local/bin/mise" ]; then
-    eval "$( $HOME/.local/bin/mise activate zsh)"
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate zsh)"
 fi
 EOF
     fi
     if (( DO_MISE_INSTALL )); then
-        log "Ensuring mise tools (mise install)"
-        (( DRY_RUN )) && echo "DRY-RUN: mise install" || mise install || warn "mise install returned non-zero"
+        if command -v mise >/dev/null 2>&1; then
+            log "Ensuring mise tools (mise install)"
+            (( DRY_RUN )) && echo "DRY-RUN: mise install" || mise install || warn "mise install returned non-zero"
+        else
+            warn "Skipping 'mise install' because mise binary not present"
+        fi
     else
         info "Skipping mise install step (flag)"
     fi
@@ -383,6 +387,9 @@ summary() {
                 echo "(VS Code) Launch VS Code once, then run:"
                 echo "  ~/.mac-setup/scripts/install-vscode-extensions.sh"
             fi
+        fi
+        if (( DO_MISE )) && ! command -v mise >/dev/null 2>&1; then
+            echo "(mise) Not installed yet. After installing via Brewfile.full: brew bundle --file Brewfile.full (or brew install mise)"
         fi
     fi
 }
