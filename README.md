@@ -12,7 +12,8 @@ Minimal, repeatable macOS, and very opinionated, dev environment bootstrap with 
 
 - Installs / updates Homebrew (idempotent)
 - Two-phase package install (public first, internal after `gh auth login`)
-- Creates modular `~/.zshrc.d` fragments (Homebrew, GNU tools, mise)
+- Creates modular `~/.zshrc.d` fragments (Homebrew, GNU tools, mise, window layouts)
+- Installs Hammerspoon + a window layout save/restore config (`wl` command)
 - Optional: macOS defaults, Oh My Zsh, mise tools, git config, AWS SAML helper
 - Optional: macOS defaults, Oh My Zsh, mise tools, git config (with SSH commit signing), AWS SAML helper
 - Copies any files in `dotfiles/` into `$HOME` (prefixing with a dot when needed) with single backup per file
@@ -58,6 +59,7 @@ Add `--dry-run` to preview. A sentinel file prevents duplicates.
 --no-git-config       Skip git config
 --no-dotfiles         Skip generic dotfiles provisioning
 --no-aws-saml         Skip AWS SAML role helper configuration
+--no-hammerspoon      Skip Hammerspoon window layout config
 --verbose             Shell trace
 ```
 
@@ -68,6 +70,27 @@ Examples:
 ~/.mac-setup/install.sh --no-internal-bundle
 ```
 
+## Window layouts (Hammerspoon)
+
+Save and restore window positions (e.g. many VS Code windows spread across a laptop screen and an external monitor) from the terminal.
+
+- `cask "hammerspoon"` is installed via `Brewfile.full` (the cask also links the `hs` CLI into Homebrew's `bin`).
+- `hammerspoon/init.lua` is copied to `~/.hammerspoon/init.lua` (existing differing file backed up once to `init.lua.backup.mac-setup`). Only this file is managed; saved layouts in `~/.hammerspoon/layouts/*.json` are left alone.
+- `zshrc.d/30-window-layouts.zsh` is copied to `~/.zshrc.d/` and defines the `wl` function.
+
+One-time manual step: open Hammerspoon, grant it Accessibility permission (System Settings → Privacy & Security → Accessibility), then restart Hammerspoon.
+
+Usage:
+
+```bash
+wl save at-desk      # save current window positions as "at-desk"
+wl restore at-desk   # move windows back to the saved positions
+wl list              # list saved layouts
+wl windows           # list current windows (app, screen, title)
+```
+
+Windows are matched by exact title, then by the stable title prefix (e.g. the VS Code workspace name), then by any remaining window of the same app. Skip with `--no-hammerspoon`.
+
 ## macOS defaults (preview)
 
 ```bash
@@ -77,7 +100,7 @@ DRY_RUN=1 bash macos-defaults.sh
 ## Uninstall (lightweight)
 
 ```bash
-rm -f ~/.zshrc.d/00-homebrew.zsh ~/.zshrc.d/10-gnu-tools.zsh ~/.zshrc.d/20-mise.zsh
+rm -f ~/.zshrc.d/00-homebrew.zsh ~/.zshrc.d/10-gnu-tools.zsh ~/.zshrc.d/20-mise.zsh ~/.zshrc.d/30-window-layouts.zsh
 mv ~/.gitconfig.backup.mac-setup ~/.gitconfig 2>/dev/null || true
 ```
 
