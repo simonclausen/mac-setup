@@ -38,6 +38,7 @@ brew "mike-engel/jwt-cli/jwt-cli"
 brew "weaveworks/tap/eksctl"
 
 cask "bruno"
+cask "hammerspoon"
 cask "powershell"
 cask "menumeters"
 cask "visual-studio-code"

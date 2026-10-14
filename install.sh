@@ -42,6 +42,7 @@ DO_MISE_INSTALL=1
 DO_GIT_CONFIG=1
 DO_DOTFILES=1
 DO_AWS_SAML=1
+DO_HAMMERSPOON=1
 DRY_RUN=0
 VERBOSE=0
 
@@ -62,6 +63,7 @@ Options:
     --no-git-config       Skip git config provisioning
     --no-dotfiles         Skip generic dotfiles/ provisioning (except .gitconfig already controlled by --no-git-config)
     --no-aws-saml         Skip AWS SAML role (saml2aws) helper configuration
+    --no-hammerspoon      Skip Hammerspoon window layout config (~/.hammerspoon/init.lua + wl zsh function)
     --verbose             More verbose output
     -h, --help            Show this help and exit
 
@@ -83,6 +85,7 @@ while [[ $# -gt 0 ]]; do
         --no-git-config) DO_GIT_CONFIG=0 ;;
     --no-dotfiles) DO_DOTFILES=0 ;;
     --no-aws-saml) DO_AWS_SAML=0 ;;
+    --no-hammerspoon) DO_HAMMERSPOON=0 ;;
         --verbose) VERBOSE=1 ;;
         -h|--help) usage; exit 0 ;;
         *) abort "Unknown option: $1" ;;
@@ -355,6 +358,34 @@ EOF
     fi
 }
 
+# Copy a single managed file into place (idempotent, one-time backup of differing existing file)
+install_managed_file() {
+    local src="$1" target="$2"
+    [[ -f "$src" ]] || { warn "Managed file '$src' missing – skipped"; return 0; }
+    if [[ -f "$target" ]] && cmp -s "$src" "$target"; then
+        info "$target already up to date"
+        return 0
+    fi
+    ensure_dir "$(dirname "$target")"
+    if [[ -e "$target" && ! -e "${target}.backup.mac-setup" ]]; then
+        run cp "$target" "${target}.backup.mac-setup"
+    fi
+    run cp "$src" "$target"
+    (( DRY_RUN )) || info "Installed $target"
+}
+
+configure_hammerspoon() {
+    (( DO_HAMMERSPOON )) || { info "Skipping Hammerspoon window layouts (flag)"; return 0; }
+    log "Configuring Hammerspoon window layouts"
+    # Only init.lua is managed; ~/.hammerspoon/layouts/ holds user data and is never touched.
+    install_managed_file "hammerspoon/init.lua" "$HOME/.hammerspoon/init.lua"
+    ensure_dir "$HOME/.hammerspoon/layouts"
+    install_managed_file "zshrc.d/30-window-layouts.zsh" "$HOME/.zshrc.d/30-window-layouts.zsh"
+    if [[ ! -d /Applications/Hammerspoon.app ]]; then
+        warn "Hammerspoon.app not found (installed via Brewfile.full: cask \"hammerspoon\")"
+    fi
+}
+
 provision_dotfiles() {
     [[ -d dotfiles ]] || { info "No dotfiles/ directory present"; return 0; }
     local applied=0 skipped=0 backed_up=0
@@ -556,6 +587,9 @@ summary() {
         if (( DO_MISE )) && ! command -v mise >/dev/null 2>&1; then
             echo "(mise) Not installed yet. After installing via Brewfile.full: brew bundle --file Brewfile.full (or brew install mise)"
         fi
+        if (( DO_HAMMERSPOON )); then
+            echo "(Hammerspoon) One-time: grant Accessibility (System Settings → Privacy & Security → Accessibility), then restart Hammerspoon."
+        fi
     fi
 }
 
@@ -567,6 +601,7 @@ ensure_zshrc_sourcing
 install_oh_my_zsh
 install_mise
 (( DO_DOTFILES )) && provision_dotfiles || info "Skipping dotfiles (flag)"
+configure_hammerspoon
 configure_git
 apply_macos_defaults
 configure_aws_saml
