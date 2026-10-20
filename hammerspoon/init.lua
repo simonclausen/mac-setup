@@ -40,12 +40,19 @@ function saveLayout(name)
   return string.format("Saved %d windows to layout '%s'", #entries, name)
 end
 
+local function isBuiltin(name) return (name or ""):find("Built%-in") ~= nil end
+
 local function findScreen(e)
-  for _, s in ipairs(hs.screen.allScreens()) do
+  local screens = hs.screen.allScreens()
+  for _, s in ipairs(screens) do
     if s:getUUID() == e.screenUUID then return s end
   end
-  for _, s in ipairs(hs.screen.allScreens()) do
+  for _, s in ipairs(screens) do
     if s:name() == e.screenName then return s end
+  end
+  -- Different physical monitor: match by role (built-in vs external)
+  for _, s in ipairs(screens) do
+    if isBuiltin(s:name()) == isBuiltin(e.screenName) then return s end
   end
   return hs.screen.primaryScreen()
 end
