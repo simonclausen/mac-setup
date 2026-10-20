@@ -28,11 +28,13 @@ function saveLayout(name)
   local entries = {}
   for _, w in ipairs(standardWindows()) do
     local app, scr = w:application(), w:screen()
-    local u = scr:toUnitRect(w:frame())
+    local f = w:frame()
+    local u = scr:toUnitRect(f)
     table.insert(entries, {
-      app = app:name(), bundleID = app:bundleID(),
+      id = w:id(), app = app:name(), bundleID = app:bundleID(),
       title = w:title(), key = titleKey(w:title()),
       screenUUID = scr:getUUID(), screenName = scr:name(),
+      size = { w = f.w, h = f.h },
       unit = { x = u.x, y = u.y, w = u.w, h = u.h },
     })
   end
@@ -62,14 +64,27 @@ function restoreLayout(name)
   if not entries then return "No layout named '" .. name .. "'" end
 
   local wins, used, moved, missing = standardWindows(), {}, 0, {}
-  local function pick(pred)
+  local function sizeDiff(e, w)
+    if not e.size then return 0 end
+    local f = w:frame()
+    return math.abs(f.w - e.size.w) + math.abs(f.h - e.size.h)
+  end
+  -- Among matching windows of the same app, prefer the one closest in size
+  local function pick(e, pass)
+    local best, bestScore
     for _, w in ipairs(wins) do
-      if not used[w:id()] and pred(w) then used[w:id()] = true; return w end
+      if not used[w:id()] and w:application():bundleID() == e.bundleID and pass(e, w) then
+        local score = sizeDiff(e, w)
+        if not best or score < bestScore then best, bestScore = w, score end
+      end
     end
+    if best then used[best:id()] = true end
+    return best
   end
 
-  -- Match exact title first, then stable title prefix, then any window of the same app
+  -- Match window ID first, then exact title, then stable title prefix, then any window of the same app
   local passes = {
+    function(e, w) return e.id ~= nil and w:id() == e.id end,
     function(e, w) return w:title() == e.title end,
     function(e, w) return e.key ~= "" and titleKey(w:title()) == e.key end,
     function(e, w) return true end,
@@ -78,11 +93,12 @@ function restoreLayout(name)
   for _, pass in ipairs(passes) do
     local rest = {}
     for _, e in ipairs(pending) do
-      local w = pick(function(w)
-        return w:application():bundleID() == e.bundleID and pass(e, w)
-      end)
+      local w = pick(e, pass)
       if w then
-        w:setFrame(findScreen(e):fromUnitRect(hs.geometry.rect(e.unit.x, e.unit.y, e.unit.w, e.unit.h)))
+        local frame = findScreen(e):fromUnitRect(hs.geometry.rect(e.unit.x, e.unit.y, e.unit.w, e.unit.h))
+        -- Apply twice: moving between screens can clamp the size to the source screen
+        w:setFrame(frame)
+        w:setFrame(frame)
         moved = moved + 1
       else
         table.insert(rest, e)

@@ -89,7 +89,34 @@ wl list              # list saved layouts
 wl windows           # list current windows (app, screen, title)
 ```
 
-Windows are matched by exact title, then by the stable title prefix (e.g. the VS Code workspace name), then by any remaining window of the same app. Skip with `--no-hammerspoon`.
+Skip with `--no-hammerspoon`.
+
+### Goals
+
+- One command to put every window back after switching between desk setups (laptop + external ultrawide, or laptop only), instead of re-placing windows by hand.
+- Manual trigger only: nothing moves until you run `wl restore`.
+- Layouts are captured from a real arrangement (`wl save`), not hand-written coordinates.
+
+### How restore works
+
+Each saved window records its app, title, macOS window ID, size, screen, and position as a fraction of that screen. On restore, each saved window is matched to an open window of the same app, trying in order:
+
+1. Same window ID (stable until the window or app is closed)
+2. Exact title
+3. Stable title prefix (text before the first ` - ` / ` — `, e.g. the VS Code workspace name)
+4. Any remaining window of that app
+
+Among several candidates, the one closest in size to the saved window wins (so e.g. Outlook's small Reminders window is not picked for the main window slot).
+
+The target screen is chosen by display UUID, then display name, then role (built-in vs external), then the primary screen. Because positions are fractions, a layout saved on one ultrawide applies to another of a similar aspect ratio. Each frame is applied twice, because moving a window between screens can clamp its size to the screen it left.
+
+### Assumptions and limitations
+
+- At most one external monitor; with several, all external windows go to the first one found.
+- Window IDs reset when an app restarts. Matching then relies on titles and size, so windows with changing titles and equal sizes (e.g. several Firefox windows) can be swapped. Re-save after restarting such apps.
+- VS Code titles should start with the workspace name for reliable matching: `"window.title": "${rootName}${separator}${activeEditorShort}"`.
+- Only visible standard windows are saved and restored. Minimized, full-screen, and other-Space windows are skipped.
+- Windows from a layout that are not open are listed as "Not found"; nothing is launched.
 
 ## macOS defaults (preview)
 
